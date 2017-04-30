@@ -26,7 +26,9 @@ import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
-
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.places.GeoDataApi;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -34,11 +36,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity {
+
+public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     LocationManager locationMan;
     String CityName;
     Location location;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,20 +146,38 @@ public class MainActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.locname)).setText(NewName);
     }
 
+
     public void ChangeLocation(Location loc) {
 
         String url = geoApiUrlBuilder(loc);
         JsonObjectRequest request = new JsonObjectRequest(url, null, new Response.Listener<JSONObject>() {
             @Override
             public void onResponse(JSONObject response) {
-                Log.d("Tag", "Response: "+ response);
+                Log.d("Tag", "Response: " + response);
+                String status = response.optString("status");
+                if (status.equals("OK")) {
+                    JSONArray results = response.optJSONArray("results");
+                    JSONObject object = results.optJSONObject(0);
+                    String placeID = object.optString("place_id");
+
+
+                    // Get the first photo in the list.
+                    PlacePhotoMetadata photo = photoMetadataBuffer.get(0);
+// Get a full-size bitmap for the photo.
+                    Bitmap image = photo.getPhoto(mGoogleApiClient).await()
+                            .getBitmap();
+// Get the attribution text.
+                    CharSequence attribution = photo.getAttributions();
+
+                }
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                Log.d("Tag", "ResponseERROR: "+ error.getMessage());
+                Log.d("TAg", "Error: " + error.getMessage());
             }
         });
+
 
         MySingleton.getInstance(MainActivity.this).addToRequestQueue(request);
 //        String longitude = "Longitude: " + loc.getLongitude();
@@ -185,6 +207,7 @@ public class MainActivity extends AppCompatActivity {
                 .concat("AIzaSyDdRhuykLm4OWfA8dKVGG61BCrjqwmjHV8");
     }
 
+
 //
 //    public void GooglePics(){
 //        String url = mPlaces.getIcon();
@@ -204,4 +227,28 @@ public class MainActivity extends AppCompatActivity {
 //                //.crossFade()
 //                .into(mImageViewIcon);
 //    }
+
+
+    private void buildGoogleApiClient() {
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API).build();
+
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+
+    }
 }
